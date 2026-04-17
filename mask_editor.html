@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Camera Mask Editor</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: #0f1117;
+    color: #e0e0e0;
+    min-height: 100vh;
+  }
+
+  .header {
+    background: linear-gradient(135deg, #1a1d27 0%, #252833 100%);
+    border-bottom: 1px solid #2d3040;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .header h1 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #f0f0f0;
+  }
+
+  .header .subtitle {
+    font-size: 13px;
+    color: #888;
+  }
+
+  .main {
+    display: flex;
+    height: calc(100vh - 56px);
+  }
+
+  .sidebar {
+    width: 280px;
+    background: #1a1d27;
+    border-right: 1px solid #2d3040;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    overflow-y: auto;
+  }
+
+  .sidebar h3 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #666;
+    margin-bottom: 4px;
+  }
+
+  .tool-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .btn {
+    padding: 10px 16px;
+    border: 1px solid #2d3040;
+    border-radius: 8px;
+    background: #252833;
+    color: #e0e0e0;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .btn:hover { background: #2d3040; border-color: #3d4060; }
+  .btn.active { background: #1d6e3f; border-color: #2a9d5c; color: #fff; }
+  .btn.danger { border-color: #5c2020; }
+  .btn.danger:hover { background: #3c1515; border-color: #8c3030; }
+  .btn.primary { background: #1d5e9e; border-color: #2a7dcc; }
+  .btn.primary:hover { background: #1a5088; }
+
+  .btn-icon {
+    width: 18px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+  }
+
+  .canvas-area {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    position: relative;
+    overflow: auto;
+  }
+
+  .canvas-wrapper {
+    position: relative;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  canvas {
+    display: block;
+    cursor: crosshair;
+  }
+
+  .zone-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .zone-item {
+    padding: 8px 12px;
+    background: #252833;
+    border: 1px solid #2d3040;
+    border-radius: 6px;
+    font-size: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .zone-item .zone-delete {
+    cursor: pointer;
+    color: #888;
+    font-size: 14px;
+  }
+  .zone-item .zone-delete:hover { color: #e05050; }
+
+  .info-box {
+    padding: 12px;
+    background: #1e2130;
+    border: 1px solid #2d3040;
+    border-radius: 8px;
+    font-size: 12px;
+    color: #999;
+    line-height: 1.6;
+  }
+
+  .opacity-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .opacity-control input[type="range"] {
+    flex: 1;
+    accent-color: #2a9d5c;
+  }
+  .opacity-control span { font-size: 12px; color: #888; min-width: 32px; }
+
+  .upload-area {
+    border: 2px dashed #2d3040;
+    border-radius: 8px;
+    padding: 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .upload-area:hover { border-color: #4d5070; }
+  .upload-area p { color: #666; font-size: 13px; margin-top: 8px; }
+
+  #fileInput { display: none; }
+
+  .status-bar {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(26,29,39,0.92);
+    border: 1px solid #2d3040;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 12px;
+    color: #999;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🎭 Camera Mask Editor</h1>
+  <span class="subtitle">Draw exclusion zones to mask areas outside the room (e.g., glass walls, doors)</span>
+</div>
+
+<div class="main">
+  <div class="sidebar">
+    <div>
+      <h3>Load Image</h3>
+      <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+        <div style="font-size:28px">📷</div>
+        <p>Click to load camera frame</p>
+      </div>
+      <input type="file" id="fileInput" accept="image/*" onchange="loadImage(event)">
+    </div>
+
+    <div>
+      <h3>Drawing Tools</h3>
+      <div class="tool-group">
+        <button class="btn active" id="btnDraw" onclick="setMode('draw')">
+          <span class="btn-icon">✏️</span> Draw Mask Zone
+        </button>
+        <button class="btn" id="btnErase" onclick="setMode('erase')">
+          <span class="btn-icon">🧹</span> Erase Mode
+        </button>
+      </div>
+    </div>
+
+    <div>
+      <h3>Brush Size</h3>
+      <div class="opacity-control">
+        <input type="range" id="brushSize" min="5" max="80" value="30" oninput="updateBrushSize()">
+        <span id="brushLabel">30px</span>
+      </div>
+    </div>
+
+    <div>
+      <h3>Mask Opacity</h3>
+      <div class="opacity-control">
+        <input type="range" id="maskOpacity" min="0" max="100" value="50" oninput="updateOverlay()">
+        <span id="opacityLabel">50%</span>
+      </div>
+    </div>
+
+    <div>
+      <h3>Zones (Polygons)</h3>
+      <div class="tool-group">
+        <button class="btn" onclick="startPolygon()">
+          <span class="btn-icon">📐</span> Start Polygon Zone
+        </button>
+        <button class="btn" id="btnFinishPoly" onclick="finishPolygon()" style="display:none">
+          <span class="btn-icon">✅</span> Finish Polygon
+        </button>
+      </div>
+      <div class="zone-list" id="zoneList"></div>
+    </div>
+
+    <div>
+      <h3>Actions</h3>
+      <div class="tool-group">
+        <button class="btn danger" onclick="clearMask()">
+          <span class="btn-icon">🗑️</span> Clear All Masks
+        </button>
+        <button class="btn primary" onclick="exportMask()">
+          <span class="btn-icon">💾</span> Export Mask (PNG)
+        </button>
+        <button class="btn" onclick="exportMaskToNewTab()">
+          <span class="btn-icon">🌐</span> Open in New Tab (manual save)
+        </button>
+        <button class="btn" onclick="previewResult()">
+          <span class="btn-icon">👁️</span> Preview Masked Image
+        </button>
+      </div>
+    </div>
+
+    <div class="info-box">
+      <strong>How to use:</strong><br>
+      1. Load a camera frame<br>
+      2. Paint over areas to exclude (outside the room, glass areas)<br>
+      3. Or use polygon mode for precise zones<br>
+      4. Export as black & white mask PNG<br><br>
+      <strong>Mask output:</strong><br>
+      White = keep (detect persons here)<br>
+      Black = exclude (ignore this area)
+    </div>
+  </div>
+
+  <div class="canvas-area">
+    <div class="canvas-wrapper" id="canvasWrapper" style="display:none">
+      <canvas id="bgCanvas"></canvas>
+      <canvas id="maskCanvas" style="position:absolute;top:0;left:0"></canvas>
+      <canvas id="overlayCanvas" style="position:absolute;top:0;left:0"></canvas>
+    </div>
+    <div id="placeholder" style="text-align:center;color:#555">
+      <div style="font-size:64px;margin-bottom:16px">📷</div>
+      <div style="font-size:16px">Load a camera frame to begin</div>
+    </div>
+    <div class="status-bar" id="statusBar" style="display:none"></div>
+  </div>
+</div>
+
+<script>
+const bgCanvas = document.getElementById('bgCanvas');
+const maskCanvas = document.getElementById('maskCanvas');
+const overlayCanvas = document.getElementById('overlayCanvas');
+const bgCtx = bgCanvas.getContext('2d');
+const maskCtx = maskCanvas.getContext('2d');
+const overlayCtx = overlayCanvas.getContext('2d');
+
+let imgLoaded = false;
+let imgW = 0, imgH = 0;
+let mode = 'draw'; // draw | erase | polygon
+let painting = false;
+let brushSize = 30;
+let polygons = [];
+let currentPoly = null;
+let bgImage = null;
+
+// Embedded sample images
+const sampleImages = [
+  'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD...' // placeholder
+];
+
+function loadImage(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    const img = new Image();
+    img.onload = function() {
+      bgImage = img;
+      imgW = img.width;
+      imgH = img.height;
+      
+      // Scale if too large
+      const maxW = window.innerWidth - 320;
+      const maxH = window.innerHeight - 100;
+      let scale = 1;
+      if (imgW > maxW) scale = Math.min(scale, maxW / imgW);
+      if (imgH * scale > maxH) scale = Math.min(scale, maxH / imgH);
+      
+      const dw = Math.round(imgW * scale);
+      const dh = Math.round(imgH * scale);
+      
+      [bgCanvas, maskCanvas, overlayCanvas].forEach(c => {
+        c.width = dw;
+        c.height = dh;
+      });
+      
+      bgCtx.drawImage(img, 0, 0, dw, dh);
+      
+      // Init mask as all white (keep everything)
+      maskCtx.fillStyle = '#ffffff';
+      maskCtx.fillRect(0, 0, dw, dh);
+      
+      updateOverlay();
+      
+      document.getElementById('canvasWrapper').style.display = 'block';
+      document.getElementById('placeholder').style.display = 'none';
+      imgLoaded = true;
+      showStatus('Image loaded: ' + imgW + '×' + imgH);
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function setMode(m) {
+  mode = m;
+  document.getElementById('btnDraw').classList.toggle('active', m === 'draw');
+  document.getElementById('btnErase').classList.toggle('active', m === 'erase');
+  overlayCanvas.style.cursor = (m === 'polygon') ? 'crosshair' : 'crosshair';
+  if (m !== 'polygon') {
+    currentPoly = null;
+    document.getElementById('btnFinishPoly').style.display = 'none';
+  }
+  showStatus('Mode: ' + m);
+}
+
+function updateBrushSize() {
+  brushSize = parseInt(document.getElementById('brushSize').value);
+  document.getElementById('brushLabel').textContent = brushSize + 'px';
+}
+
+function updateOverlay() {
+  if (!imgLoaded) return;
+  const opacity = parseInt(document.getElementById('maskOpacity').value) / 100;
+  document.getElementById('opacityLabel').textContent = Math.round(opacity * 100) + '%';
+  
+  const w = overlayCanvas.width, h = overlayCanvas.height;
+  overlayCtx.clearRect(0, 0, w, h);
+  
+  // Get mask data
+  const maskData = maskCtx.getImageData(0, 0, w, h);
+  const overlayData = overlayCtx.createImageData(w, h);
+  
+  for (let i = 0; i < maskData.data.length; i += 4) {
+    const isBlack = maskData.data[i] < 128;
+    if (isBlack) {
+      // Masked area - show red tint
+      overlayData.data[i] = 220;     // R
+      overlayData.data[i+1] = 50;    // G
+      overlayData.data[i+2] = 50;    // B
+      overlayData.data[i+3] = Math.round(opacity * 180); // A
+    }
+  }
+  
+  overlayCtx.putImageData(overlayData, 0, 0);
+  
+  // Draw polygon in progress
+  if (currentPoly && currentPoly.length > 0) {
+    overlayCtx.strokeStyle = '#00ff88';
+    overlayCtx.lineWidth = 2;
+    overlayCtx.setLineDash([6, 4]);
+    overlayCtx.beginPath();
+    overlayCtx.moveTo(currentPoly[0].x, currentPoly[0].y);
+    for (let i = 1; i < currentPoly.length; i++) {
+      overlayCtx.lineTo(currentPoly[i].x, currentPoly[i].y);
+    }
+    overlayCtx.stroke();
+    overlayCtx.setLineDash([]);
+    
+    // Draw points
+    currentPoly.forEach((p, i) => {
+      overlayCtx.fillStyle = i === 0 ? '#ff4444' : '#00ff88';
+      overlayCtx.beginPath();
+      overlayCtx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+      overlayCtx.fill();
+    });
+  }
+}
+
+// Mouse events for painting
+overlayCanvas.addEventListener('mousedown', function(e) {
+  if (!imgLoaded) return;
+  const rect = overlayCanvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  
+  if (mode === 'polygon') {
+    if (!currentPoly) return;
+    
+    // Check if clicking near first point to close
+    if (currentPoly.length > 2) {
+      const d = Math.hypot(x - currentPoly[0].x, y - currentPoly[0].y);
+      if (d < 12) {
+        finishPolygon();
+        return;
+      }
+    }
+    
+    currentPoly.push({x, y});
+    updateOverlay();
+    showStatus('Polygon: ' + currentPoly.length + ' points (click first point to close)');
+    return;
+  }
+  
+  painting = true;
+  paintAt(x, y);
+});
+
+overlayCanvas.addEventListener('mousemove', function(e) {
+  if (!painting || !imgLoaded || mode === 'polygon') return;
+  const rect = overlayCanvas.getBoundingClientRect();
+  paintAt(e.clientX - rect.left, e.clientY - rect.top);
+});
+
+overlayCanvas.addEventListener('mouseup', () => { painting = false; });
+overlayCanvas.addEventListener('mouseleave', () => { painting = false; });
+
+function paintAt(x, y) {
+  maskCtx.beginPath();
+  maskCtx.arc(x, y, brushSize / 2, 0, Math.PI * 2);
+  maskCtx.fillStyle = (mode === 'draw') ? '#000000' : '#ffffff';
+  maskCtx.fill();
+  updateOverlay();
+}
+
+function startPolygon() {
+  currentPoly = [];
+  mode = 'polygon';
+  document.getElementById('btnDraw').classList.remove('active');
+  document.getElementById('btnErase').classList.remove('active');
+  document.getElementById('btnFinishPoly').style.display = 'block';
+  showStatus('Click to add polygon points. Click first point or "Finish" to close.');
+}
+
+function finishPolygon() {
+  if (!currentPoly || currentPoly.length < 3) {
+    showStatus('Need at least 3 points for a polygon');
+    return;
+  }
+  
+  // Fill polygon on mask as black
+  maskCtx.fillStyle = '#000000';
+  maskCtx.beginPath();
+  maskCtx.moveTo(currentPoly[0].x, currentPoly[0].y);
+  for (let i = 1; i < currentPoly.length; i++) {
+    maskCtx.lineTo(currentPoly[i].x, currentPoly[i].y);
+  }
+  maskCtx.closePath();
+  maskCtx.fill();
+  
+  polygons.push([...currentPoly]);
+  updateZoneList();
+  
+  currentPoly = null;
+  document.getElementById('btnFinishPoly').style.display = 'none';
+  setMode('draw');
+  updateOverlay();
+  showStatus('Polygon zone added');
+}
+
+function updateZoneList() {
+  const list = document.getElementById('zoneList');
+  list.innerHTML = '';
+  polygons.forEach((poly, i) => {
+    const item = document.createElement('div');
+    item.className = 'zone-item';
+    item.innerHTML = `
+      <span>Zone ${i + 1} (${poly.length} pts)</span>
+      <span class="zone-delete" onclick="deleteZone(${i})">✕</span>
+    `;
+    list.appendChild(item);
+  });
+}
+
+function deleteZone(idx) {
+  polygons.splice(idx, 1);
+  rebuildMask();
+  updateZoneList();
+}
+
+function rebuildMask() {
+  const w = maskCanvas.width, h = maskCanvas.height;
+  maskCtx.fillStyle = '#ffffff';
+  maskCtx.fillRect(0, 0, w, h);
+  
+  polygons.forEach(poly => {
+    maskCtx.fillStyle = '#000000';
+    maskCtx.beginPath();
+    maskCtx.moveTo(poly[0].x, poly[0].y);
+    for (let i = 1; i < poly.length; i++) {
+      maskCtx.lineTo(poly[i].x, poly[i].y);
+    }
+    maskCtx.closePath();
+    maskCtx.fill();
+  });
+  
+  updateOverlay();
+}
+
+function clearMask() {
+  if (!imgLoaded) return;
+  polygons = [];
+  updateZoneList();
+  maskCtx.fillStyle = '#ffffff';
+  maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
+  updateOverlay();
+  showStatus('All masks cleared');
+}
+
+function exportMask() {
+  if (!imgLoaded) {
+    showStatus('⚠️ Load an image first');
+    return;
+  }
+  
+  // Create export canvas at original resolution
+  const exportCanvas = document.createElement('canvas');
+  exportCanvas.width = imgW;
+  exportCanvas.height = imgH;
+  const exportCtx = exportCanvas.getContext('2d');
+  
+  // Scale mask to original size
+  exportCtx.drawImage(maskCanvas, 0, 0, imgW, imgH);
+  
+  // Threshold to pure black/white
+  const data = exportCtx.getImageData(0, 0, imgW, imgH);
+  for (let i = 0; i < data.data.length; i += 4) {
+    const v = data.data[i] < 128 ? 0 : 255;
+    data.data[i] = v;
+    data.data[i+1] = v;
+    data.data[i+2] = v;
+    data.data[i+3] = 255;
+  }
+  exportCtx.putImageData(data, 0, 0);
+  
+  // ใช้ toBlob แทน toDataURL — เสถียรกว่าและรองรับไฟล์ใหญ่
+  exportCanvas.toBlob(function(blob) {
+    if (!blob) {
+      showStatus('❌ Export failed — try Preview mode');
+      return;
+    }
+    
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'camera_mask.png';
+    
+    // ต้องต่อเข้า DOM ก่อนค่อย click (บางเบราว์เซอร์บล็อกถ้าไม่อยู่ใน DOM)
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // cleanup URL หลังจาก download
+    setTimeout(() => URL.revokeObjectURL(url), 100);
+    
+    showStatus('✅ Exported camera_mask.png — check your Downloads folder');
+  }, 'image/png');
+}
+
+// Fallback — เปิด mask ใน tab ใหม่ให้ right-click save as
+function exportMaskToNewTab() {
+  if (!imgLoaded) {
+    showStatus('⚠️ Load an image first');
+    return;
+  }
+  
+  const exportCanvas = document.createElement('canvas');
+  exportCanvas.width = imgW;
+  exportCanvas.height = imgH;
+  const exportCtx = exportCanvas.getContext('2d');
+  exportCtx.drawImage(maskCanvas, 0, 0, imgW, imgH);
+  
+  const data = exportCtx.getImageData(0, 0, imgW, imgH);
+  for (let i = 0; i < data.data.length; i += 4) {
+    const v = data.data[i] < 128 ? 0 : 255;
+    data.data[i] = v;
+    data.data[i+1] = v;
+    data.data[i+2] = v;
+    data.data[i+3] = 255;
+  }
+  exportCtx.putImageData(data, 0, 0);
+  
+  const dataUrl = exportCanvas.toDataURL('image/png');
+  const win = window.open();
+  if (win) {
+    win.document.write(
+      '<html><head><title>Mask — Right-click → Save Image As</title></head>' +
+      '<body style="margin:0;background:#222;display:flex;flex-direction:column;' +
+      'align-items:center;justify-content:center;min-height:100vh;color:#fff;' +
+      'font-family:sans-serif">' +
+      '<p style="padding:16px;background:#2a9d5c;border-radius:8px;margin-bottom:16px">' +
+      '📥 Right-click the image below → <b>Save Image As</b> → ' +
+      'save as <code>camera_XX_mask.png</code></p>' +
+      '<img src="' + dataUrl + '" style="max-width:100%;border:2px solid #555"/>' +
+      '</body></html>'
+    );
+    showStatus('✅ Mask opened in new tab — right-click to save');
+  } else {
+    showStatus('❌ Popup blocked — allow popups and try again');
+  }
+}
+
+function previewResult() {
+  if (!imgLoaded || !bgImage) return;
+  
+  // Show image with mask applied (masked areas darkened)
+  const w = overlayCanvas.width, h = overlayCanvas.height;
+  overlayCtx.clearRect(0, 0, w, h);
+  overlayCtx.drawImage(bgImage, 0, 0, w, h);
+  
+  const maskData = maskCtx.getImageData(0, 0, w, h);
+  const imgData = overlayCtx.getImageData(0, 0, w, h);
+  
+  for (let i = 0; i < maskData.data.length; i += 4) {
+    if (maskData.data[i] < 128) {
+      // Black out masked areas
+      imgData.data[i] = 0;
+      imgData.data[i+1] = 0;
+      imgData.data[i+2] = 0;
+      imgData.data[i+3] = 255;
+    }
+  }
+  
+  overlayCtx.putImageData(imgData, 0, 0);
+  showStatus('Preview mode — click "Draw Mask Zone" to return to editing');
+}
+
+function showStatus(msg) {
+  const bar = document.getElementById('statusBar');
+  bar.textContent = msg;
+  bar.style.display = 'block';
+  clearTimeout(bar._timeout);
+  bar._timeout = setTimeout(() => { bar.style.display = 'none'; }, 3000);
+}
+</script>
+
+</body>
+</html>

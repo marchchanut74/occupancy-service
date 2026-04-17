@@ -1,0 +1,101 @@
+# ──────────────────────────────────────────────────────────
+# Home Assistant — Occupancy Detection Integration
+# ──────────────────────────────────────────────────────────
+# วาง section นี้ใน configuration.yaml (หรือ include)
+#
+# REST sensor จะ poll API ทุก 5 นาที (300 วินาที)
+# แล้วแยก attribute ออกมาเป็น template sensor
+
+rest:
+  - resource: "http://localhost:8000/api/status"
+    scan_interval: 300
+    sensor:
+      - name: "Occupancy All Cameras"
+        unique_id: "occupancy_all_cameras"
+        value_template: "{{ value_json.cameras | length }}"
+        json_attributes:
+          - cameras
+
+# ── Template sensors สำหรับแต่ละกล้อง ───────────────────
+# ปรับ index [0], [1], [2], [3] ตามจำนวนกล้อง
+
+template:
+  - sensor:
+      # Camera 01
+      - name: "Occupancy Camera 01"
+        unique_id: "occupancy_camera_01"
+        state: >
+          {% set cams = state_attr('sensor.occupancy_all_cameras', 'cameras') %}
+          {% if cams and cams | length > 0 %}
+            {% set c = cams | selectattr('camera_id', 'eq', 'camera_01') | list %}
+            {% if c | length > 0 %}
+              {{ c[0].person_count | default(0) }}
+            {% else %}0{% endif %}
+          {% else %}0{% endif %}
+        unit_of_measurement: "persons"
+        icon: >
+          {% if this.state | int(0) > 0 %}mdi:account-group
+          {% else %}mdi:account-off{% endif %}
+        attributes:
+          occupied: >
+            {% set cams = state_attr('sensor.occupancy_all_cameras', 'cameras') %}
+            {% if cams %}
+              {% set c = cams | selectattr('camera_id', 'eq', 'camera_01') | list %}
+              {% if c | length > 0 %}{{ c[0].occupied | default(false) }}
+              {% else %}false{% endif %}
+            {% else %}false{% endif %}
+          confidence: >
+            {% set cams = state_attr('sensor.occupancy_all_cameras', 'cameras') %}
+            {% if cams %}
+              {% set c = cams | selectattr('camera_id', 'eq', 'camera_01') | list %}
+              {% if c | length > 0 %}{{ c[0].max_confidence | default(0) }}
+              {% else %}0{% endif %}
+            {% else %}0{% endif %}
+
+      # Camera 02
+      - name: "Occupancy Camera 02"
+        unique_id: "occupancy_camera_02"
+        state: >
+          {% set cams = state_attr('sensor.occupancy_all_cameras', 'cameras') %}
+          {% if cams and cams | length > 0 %}
+            {% set c = cams | selectattr('camera_id', 'eq', 'camera_02') | list %}
+            {% if c | length > 0 %}
+              {{ c[0].person_count | default(0) }}
+            {% else %}0{% endif %}
+          {% else %}0{% endif %}
+        unit_of_measurement: "persons"
+        icon: >
+          {% if this.state | int(0) > 0 %}mdi:account-group
+          {% else %}mdi:account-off{% endif %}
+
+      # Camera 03
+      - name: "Occupancy Camera 03"
+        unique_id: "occupancy_camera_03"
+        state: >
+          {% set cams = state_attr('sensor.occupancy_all_cameras', 'cameras') %}
+          {% if cams and cams | length > 0 %}
+            {% set c = cams | selectattr('camera_id', 'eq', 'camera_03') | list %}
+            {% if c | length > 0 %}
+              {{ c[0].person_count | default(0) }}
+            {% else %}0{% endif %}
+          {% else %}0{% endif %}
+        unit_of_measurement: "persons"
+        icon: >
+          {% if this.state | int(0) > 0 %}mdi:account-group
+          {% else %}mdi:account-off{% endif %}
+
+      # Camera 04
+      - name: "Occupancy Camera 04"
+        unique_id: "occupancy_camera_04"
+        state: >
+          {% set cams = state_attr('sensor.occupancy_all_cameras', 'cameras') %}
+          {% if cams and cams | length > 0 %}
+            {% set c = cams | selectattr('camera_id', 'eq', 'camera_04') | list %}
+            {% if c | length > 0 %}
+              {{ c[0].person_count | default(0) }}
+            {% else %}0{% endif %}
+          {% else %}0{% endif %}
+        unit_of_measurement: "persons"
+        icon: >
+          {% if this.state | int(0) > 0 %}mdi:account-group
+          {% else %}mdi:account-off{% endif %}

@@ -1,0 +1,64 @@
+# ──────────────────────────────────────────────────────────
+# Occupancy Detection Service — Configuration
+# ──────────────────────────────────────────────────────────
+
+# ── Camera Settings ──────────────────────────────────────
+# แต่ละกล้องกำหนด:
+#   id           : ชื่อกล้อง (ใช้ใน API response / MQTT topic)
+#   input_path   : path ที่ admin วางภาพล่าสุด (watch folder)
+#   mask_path    : path ไปยัง mask image (optional, ถ้าไม่มีก็ไม่ mask)
+#   resize_width : resize ก่อน inference (default: 640)
+
+cameras:
+  - id: "camera_01"
+    input_path: "/data/snapshots/camera_01/latest.jpg"
+    mask_path: "masks/camera_01_mask.png"     # ห้องกระจก ต้อง mask
+    resize_width: 640
+
+  - id: "camera_02"
+    input_path: "/data/snapshots/camera_02/latest.jpg"
+    mask_path: "masks/camera_02_mask.png"
+    resize_width: 640
+
+  - id: "camera_03"
+    input_path: "/data/snapshots/camera_03/latest.jpg"
+    # ไม่มี mask — ไม่ต้องใส่
+    resize_width: 640
+
+  - id: "camera_04"
+    input_path: "/data/snapshots/camera_04/latest.jpg"
+    resize_width: 640
+
+
+# ── Model Settings ───────────────────────────────────────
+model:
+  path: "yolo26s.pt"
+  confidence: 0.1
+  person_class: 0              # YOLO class id สำหรับ "person"
+
+
+# ── Schedule ─────────────────────────────────────────────
+schedule:
+  interval_sec: 300            # detect ทุก 5 นาที
+
+
+# ── API Server ───────────────────────────────────────────
+api:
+  host: "0.0.0.0"
+  port: 8000
+
+
+# ── MQTT (optional — ถ้าไม่ใช้ ลบ section นี้ออก) ────────
+mqtt:
+  enabled: false
+  broker: "192.168.1.100"
+  port: 1883
+  topic_prefix: "occupancy"
+  # username: ""
+  # password: ""
+
+
+# ── Logging ──────────────────────────────────────────────
+logging:
+  level: "INFO"                # DEBUG | INFO | WARNING | ERROR
+  file: "logs/occupancy.log"
