@@ -1,5 +1,10 @@
-# Occupancy Detection Service — Dependencies
+# Occupancy Detection Service — Dependencies (CPU-only)
 # ต้องใช้ Python 3.10 ขึ้นไป
+#
+# ใช้ PyTorch CPU-only → ประหยัด disk ~1.5GB
+# ถ้าต้องการ GPU ลบบรรทัด --extra-index-url ออก
+
+--extra-index-url https://download.pytorch.org/whl/cpu
 
 # ── Core ──
 ultralytics>=8.0
@@ -15,5 +20,4 @@ python-multipart>=0.0.6        # สำหรับ file upload
 pyyaml>=6.0
 
 # ── MQTT (optional — ถ้าไม่ใช้ MQTT ลบบรรทัดนี้ได้) ──
-# pin <2.0 เพราะ paho-mqtt v2 เปลี่ยน API (Client init ต้องระบุ callback_api_version)
 paho-mqtt>=1.6,<2.0
