@@ -6,8 +6,6 @@ venv/
 .venv/
 *.egg-info/
 
-# YOLO model (ไฟล์ใหญ่ ไม่ควรอยู่ใน git)
-*.pt
 
 # Mask images (เฉพาะของแต่ละ site วาดเอง)
 masks/*.png
