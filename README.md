@@ -9,7 +9,7 @@
 
 - **Python 3.10 ขึ้นไป** (ใช้ union type syntax `str | None`)
 - GPU (optional — ถ้ามีจะเร็วกว่า CPU หลายเท่า)
-- Disk space อย่างน้อย 2GB (สำหรับโมเดล + SQLite history)
+- Disk space ~800MB (สำหรับโมเดล + SQLite history)
 
 ---
 
